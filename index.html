@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>F1 2025 Finale</title>
     <!-- Import Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -30,7 +30,7 @@
             --sauber: #52E252;
         }
 
-        * { box-sizing: border-box; user-select: none; }
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
         
         body {
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -46,29 +46,38 @@
         a { color: inherit; text-decoration: none; border-bottom: 1px dotted #666; transition: 0.2s; }
         a:hover { color: #fff; border-bottom-color: #fff; }
 
+        /* HEADER */
         header {
             background: #000;
-            padding: 0 20px;
+            padding: 0 15px;
             border-bottom: 2px solid var(--accent);
             display: flex;
             justify-content: space-between;
             align-items: center;
             height: 60px;
             flex-shrink: 0;
+            z-index: 2000;
+            position: relative;
         }
 
-        h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+
+        h1 { margin: 0; font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; }
         
-        .progress-indicator {
-            display: flex;
-            gap: 10px;
+        /* Mobile Menu Button */
+        .menu-btn {
+            background: none; border: none; cursor: pointer; padding: 5px;
+            display: none; /* Hidden on Desktop */
         }
-        .step {
-            font-size: 0.8rem;
-            color: #444;
-            padding: 4px 8px;
-            border-radius: 4px;
+        .menu-icon { width: 24px; height: 2px; background: white; position: relative; display: block; }
+        .menu-icon::before, .menu-icon::after {
+            content: ''; position: absolute; width: 100%; height: 100%; background: white; left: 0;
         }
+        .menu-icon::before { top: -8px; }
+        .menu-icon::after { top: 8px; }
+
+        .progress-indicator { display: flex; gap: 8px; }
+        .step { font-size: 0.75rem; color: #444; padding: 4px 8px; border-radius: 4px; white-space: nowrap; }
         .step.active { background: var(--accent); color: white; font-weight: bold; }
         .step.done { color: var(--accent); }
 
@@ -76,9 +85,9 @@
         .main-container {
             display: grid;
             grid-template-columns: 380px 1fr;
-            /* Height = 100vh - Header(60) - Footer(30) */
             height: calc(100vh - 90px); 
             position: relative;
+            transition: 0.3s ease;
         }
 
         /* LEFT PANEL: STANDINGS */
@@ -88,195 +97,179 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            z-index: 1500;
         }
 
         .standings-header {
-            font-size: 1rem;
-            color: #ddd;
-            padding: 15px 20px;
-            border-bottom: 1px solid #333;
-            background: #1a1a1a;
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            font-size: 1rem; color: #ddd; padding: 15px;
+            border-bottom: 1px solid #333; background: #1a1a1a;
+            position: sticky; top: 0; z-index: 10;
+            display: flex; justify-content: space-between; align-items: center;
         }
 
+        .close-menu-btn { display: none; background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer;}
+
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { text-align: left; color: #666; padding: 8px 10px; font-size: 0.75rem; text-transform: uppercase; background: #111; }
-        td { padding: 8px 10px; border-bottom: 1px solid #222; }
+        th { text-align: left; color: #666; padding: 10px; font-size: 0.7rem; text-transform: uppercase; background: #111; }
+        td { padding: 10px; border-bottom: 1px solid #222; }
         
         .pos-cell { width: 30px; font-weight: bold; color: #666; }
-        .pts-cell { font-weight: bold; text-align: right; width: 80px;}
-        .diff-cell { font-size: 0.75em; color: #666; text-align: right; width: 60px;}
-        
+        .pts-cell { font-weight: bold; text-align: right; width: 70px;}
+        .diff-cell { font-size: 0.75em; color: #666; text-align: right; width: 50px;}
         .driver-name { display: flex; align-items: center; gap: 8px; }
         .team-bar { width: 4px; height: 12px; border-radius: 2px; }
-
         tr.leader { background: rgba(255, 215, 0, 0.05); }
         tr.leader .pos-cell { color: gold; }
-        
-        .live-gain { color: #4caf50; font-size: 0.8em; margin-left: 4px; }
+        .live-gain { color: #4caf50; font-size: 0.8em; margin-left: 4px; display: inline-block; }
 
-        /* RIGHT PANEL: DRAG INTERFACE */
+        /* RIGHT PANEL: RACE/DRAG */
         .race-panel {
             background: var(--bg-dark);
             padding: 20px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            position: relative;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: relative;
         }
 
-        .session-info { text-align: center; margin-bottom: 20px; flex-shrink: 0;}
-        .session-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
-        .session-subtitle { color: #888; font-size: 0.9rem; }
+        .session-info { text-align: center; margin-bottom: 15px; flex-shrink: 0;}
+        .session-title { font-size: 1.4rem; font-weight: bold; margin-bottom: 5px; }
+        .session-subtitle { color: #888; font-size: 0.85rem; }
 
         .drag-container {
-            flex: 1;
-            overflow-y: auto;
-            position: relative;
-            padding-right: 10px;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
+            flex: 1; overflow-y: auto; position: relative;
+            padding-right: 5px; max-width: 800px; margin: 0 auto; width: 100%;
+            /* Scrollbar styling */
+            scrollbar-width: thin; scrollbar-color: #333 #111;
         }
 
         .drag-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            list-style: none; padding: 0; margin: 0;
+            display: flex; flex-direction: column; gap: 8px;
             padding-bottom: 20px;
         }
 
         .driver-card {
             background: var(--item-bg);
-            padding: 10px 15px;
+            padding: 12px 15px;
             border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
             cursor: grab;
-            transition: background 0.2s;
             border-left: 5px solid transparent;
+            touch-action: none; /* Crucial for custom drag */
         }
 
         .driver-card:hover { background: var(--highlight); }
-        .driver-card:active { cursor: grabbing; }
-        .driver-card.dragging { opacity: 0.5; background: #333; }
+        .driver-card.dragging { opacity: 0.6; background: #333; transform: scale(0.98); box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 100;}
 
-        .card-pos { font-weight: bold; width: 30px; color: #666; font-family: monospace; font-size: 1.1rem; }
+        .card-pos { font-weight: bold; width: 35px; color: #666; font-family: monospace; font-size: 1.1rem; }
         .card-info { flex: 1; display: flex; align-items: center; gap: 10px; }
-        .card-team { font-size: 0.75rem; color: #888; text-transform: uppercase; width: 80px; }
-        .card-name { font-weight: 600; font-size: 1.1rem; }
+        .card-team { font-size: 0.7rem; color: #888; text-transform: uppercase; width: 70px; }
+        .card-name { font-weight: 600; font-size: 1rem; }
         .card-pts-preview { 
             background: #333; color: gold; 
-            padding: 2px 8px; border-radius: 10px; 
-            font-size: 0.8rem; font-weight: bold;
+            padding: 3px 8px; border-radius: 10px; 
+            font-size: 0.75rem; font-weight: bold;
             opacity: 0; transition: opacity 0.2s;
         }
         .driver-card.in-points .card-pts-preview { opacity: 1; }
 
         .points-cutoff {
-            border-bottom: 2px dashed #444;
-            margin: 10px 0;
-            height: 2px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-bottom: 2px dashed #333; margin: 10px 0; height: 2px;
+            display: flex; align-items: center; justify-content: center;
         }
-        .points-cutoff span { background: var(--bg-dark); padding: 0 10px; color: #666; font-size: 0.7rem; text-transform: uppercase; }
+        .points-cutoff span { background: var(--bg-dark); padding: 0 10px; color: #555; font-size: 0.65rem; text-transform: uppercase; }
 
         .action-area {
-            padding: 20px;
+            padding: 15px;
             border-top: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--panel-bg);
-            flex-shrink: 0;
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--panel-bg); flex-shrink: 0;
         }
 
         button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            text-transform: uppercase;
-            font-size: 0.9rem;
+            padding: 12px 20px; border: none; border-radius: 4px;
+            cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 0.85rem;
         }
 
-        .btn-confirm { background: var(--accent); color: white; }
-        .btn-confirm:hover { background: #ff1a1a; }
-        .btn-reset { background: transparent; color: #666; border: 1px solid #444; }
-        .btn-reset:hover { color: #fff; border-color: #fff; }
+        .btn-confirm { background: var(--accent); color: white; width: 60%; }
+        .btn-confirm:active { background: #ff1a1a; transform: translateY(1px); }
+        .btn-reset { background: transparent; color: #666; border: 1px solid #444; width: 30%; }
 
         /* FOOTER */
         footer {
-            height: 30px;
-            background: #000;
-            border-top: 1px solid #222;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            color: #555;
-            letter-spacing: 0.5px;
+            height: 30px; background: #000; border-top: 1px solid #222;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.75rem; color: #555; letter-spacing: 0.5px; z-index: 10;
         }
+
+        /* OVERLAY for Mobile Menu */
+        .overlay-backdrop {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 1400;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .overlay-backdrop.active { opacity: 1; pointer-events: auto; }
 
         /* RESULTS VIEW */
         .results-view {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: var(--bg-dark);
-            z-index: 100;
-            display: none; /* Hidden by default */
-            flex-direction: column;
-            padding: 40px;
-            overflow-y: auto;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark); z-index: 2100;
+            display: none; flex-direction: column;
+            overflow-y: auto; padding-bottom: 40px;
         }
         
-        .results-header { text-align: center; margin-bottom: 30px; }
-        .results-title { font-size: 2.5rem; color: white; margin-bottom: 10px; }
-        .champion-badge { background: gold; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 20px;}
+        .results-header { text-align: center; padding: 40px 20px 20px; }
+        .results-title { font-size: 2.2rem; color: white; margin-bottom: 5px; line-height: 1.1;}
+        .champion-badge { background: gold; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 15px; font-size: 0.8rem;}
 
         .results-content {
             display: grid;
-            grid-template-columns: 2fr 1fr; /* Graph takes more space */
+            grid-template-columns: 2fr 1fr;
             gap: 20px;
             max-width: 1400px;
             margin: 0 auto;
             width: 100%;
-            height: 500px;
+            padding: 0 20px;
         }
 
-        .graph-container {
+        .graph-container, .final-table-container {
             background: var(--panel-bg);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            display: flex;
-            flex-direction: column;
+            padding: 15px; border-radius: 8px; border: 1px solid #333;
         }
         
-        .final-table-container {
-            background: var(--panel-bg);
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            overflow-y: auto;
-        }
+        .graph-container { height: 400px; display: flex; flex-direction: column; }
         
-        .credits-small {
-            margin-top: 15px;
-            font-size: 0.8rem;
-            color: #555;
+        .credits-small { margin-top: 20px; font-size: 0.8rem; color: #555; }
+
+        /* RESPONSIVE CSS */
+        @media (max-width: 900px) {
+            .main-container { display: block; height: calc(100vh - 90px); }
+            
+            /* Header */
+            .menu-btn { display: block; }
+            .header-left { gap: 10px; }
+            h1 { font-size: 1rem; }
+            .progress-indicator { display: none; } /* Hide steps on mobile header to save space */
+            
+            /* Standings (Off-Canvas) */
+            .standings-panel {
+                position: fixed; top: 0; left: 0; height: 100%; width: 85%; max-width: 320px;
+                transform: translateX(-100%); transition: transform 0.3s ease-in-out;
+                box-shadow: 5px 0 20px rgba(0,0,0,0.5);
+            }
+            .standings-panel.open { transform: translateX(0); }
+            .close-menu-btn { display: block; }
+            
+            /* Race Panel */
+            .race-panel { height: 100%; padding: 15px 10px; }
+            .card-team { display: none; } /* Hide Team name on very small screens to save space */
+            
+            /* Results View */
+            .results-content { grid-template-columns: 1fr; gap: 20px; }
+            .graph-container { height: 300px; }
+            .results-title { font-size: 1.8rem; }
         }
 
-        /* Team Colors helpers */
+        /* Helper Classes */
         .tm-mclaren { border-left-color: var(--mclaren) !important; } .bg-mclaren { background-color: var(--mclaren); }
         .tm-redbull { border-left-color: var(--redbull) !important; } .bg-redbull { background-color: var(--redbull); }
         .tm-ferrari { border-left-color: var(--ferrari) !important; } .bg-ferrari { background-color: var(--ferrari); }
@@ -293,7 +286,12 @@
 <body>
 
 <header>
-    <h1>F1 2025 Finale</h1>
+    <div class="header-left">
+        <button class="menu-btn" onclick="toggleMenu()">
+            <span class="menu-icon"></span>
+        </button>
+        <h1>F1 2025 Finale</h1>
+    </div>
     <div class="progress-indicator">
         <div id="step-0" class="step active">Qatar Sprint</div>
         <div id="step-1" class="step">Qatar GP</div>
@@ -301,12 +299,16 @@
     </div>
 </header>
 
+<!-- Backdrop for mobile menu -->
+<div class="overlay-backdrop" id="backdrop" onclick="toggleMenu()"></div>
+
 <div class="main-container">
     
-    <!-- LEFT: LIVE STANDINGS -->
-    <div class="standings-panel">
+    <!-- LEFT: LIVE STANDINGS (Slide-out on Mobile) -->
+    <div class="standings-panel" id="standings-panel">
         <div class="standings-header">
-            <strong>Live Standings</strong> (Including Current Session)
+            <strong>Live Standings</strong>
+            <button class="close-menu-btn" onclick="toggleMenu()">&times;</button>
         </div>
         <table>
             <thead>
@@ -327,7 +329,7 @@
     <div class="race-panel">
         <div class="session-info">
             <div class="session-title" id="session-title">Qatar Sprint</div>
-            <div class="session-subtitle">Drag drivers to rearrange finishing order. Standings update live.</div>
+            <div class="session-subtitle">Drag drivers to rearrange finishing order</div>
         </div>
 
         <div class="drag-container">
@@ -338,9 +340,9 @@
 
         <div class="action-area">
             <button class="btn-reset" onclick="resetSim()">Reset</button>
-            <div style="font-size:0.9rem; color:#666;" id="session-status">Top 8 score points</div>
             <button class="btn-confirm" onclick="confirmResults()">Confirm & Next</button>
         </div>
+        <div style="font-size:0.75rem; color:#555; text-align:center; margin-top:5px;" id="session-status">Top 8 score points</div>
     </div>
 
     <!-- RESULTS VIEW OVERLAY -->
@@ -354,15 +356,15 @@
         <div class="results-content">
             <!-- Graph -->
             <div class="graph-container">
-                <h3 style="margin:0 0 10px 0; color:#ddd;">Championship Trajectory</h3>
-                <div style="position: relative; height: 100%; width: 100%">
+                <h3 style="margin:0 0 10px 0; color:#ddd; font-size:1rem;">Title Fight Trajectory</h3>
+                <div style="position: relative; flex:1; width: 100%; min-height: 0;">
                     <canvas id="championshipChart"></canvas>
                 </div>
             </div>
 
             <!-- Table -->
             <div class="final-table-container">
-                <h3 style="margin:0 0 20px 0; color:#ddd;">Final Classification</h3>
+                <h3 style="margin:0 0 15px 0; color:#ddd; font-size:1rem;">Final Classification</h3>
                 <table id="final-table">
                     <thead>
                         <tr><th>Pos</th><th>Driver</th><th style="text-align:right">Points</th></tr>
@@ -373,7 +375,7 @@
         </div>
 
         <div style="text-align: center; margin-top: 40px;">
-            <button class="btn-confirm" onclick="resetSim()">Start New Simulation</button>
+            <button class="btn-confirm" onclick="resetSim()" style="width: auto; padding: 12px 30px;">Start New Simulation</button>
             <div class="credits-small">
                 Made by <a href="https://kiera.dev" target="_blank">Kiera</a>
             </div>
@@ -438,23 +440,27 @@
 
     // --- INIT ---
     function init() {
-        currentGridOrder = bankedDrivers.map(d => d.id); // Default start order = standings
+        currentGridOrder = bankedDrivers.map(d => d.id); 
         renderDragList();
-        updateLiveStandings(); // Initial render
+        updateLiveStandings(); 
         setupSessionUI();
         
-        // Chart defaults for dark mode
+        // Chart Config
         Chart.defaults.color = '#888';
         Chart.defaults.borderColor = '#333';
     }
 
+    // --- MOBILE MENU ---
+    function toggleMenu() {
+        document.getElementById('standings-panel').classList.toggle('open');
+        document.getElementById('backdrop').classList.toggle('active');
+    }
+
     // --- LIVE CALCULATION ---
     function updateLiveStandings() {
-        // Calculate points based on Banked + Current Drag Position
         const session = SESSIONS[currentStep];
         const pointsArr = session.type === 'sprint' ? POINTS.sprint : POINTS.race;
 
-        // Create a temporary array for display
         let liveStandings = bankedDrivers.map(d => {
             let addedPoints = 0;
             const currentPos = currentGridOrder.indexOf(d.id);
@@ -468,10 +474,8 @@
             };
         });
 
-        // Sort by Live Points
         liveStandings.sort((a,b) => b.livePoints - a.livePoints);
         
-        // Render
         const tbody = document.getElementById('standings-body');
         tbody.innerHTML = '';
         const leaderPts = liveStandings[0].livePoints;
@@ -498,7 +502,7 @@
         });
     }
 
-    // --- SETUP SESSION UI ---
+    // --- UI HELPERS ---
     function setupSessionUI() {
         const session = SESSIONS[currentStep];
         document.getElementById('session-title').innerText = session.name;
@@ -511,7 +515,7 @@
         });
     }
 
-    // --- DRAG LIST RENDER ---
+    // --- DRAG AND DROP (MOUSE + TOUCH) ---
     function renderDragList() {
         const list = document.getElementById('drag-list');
         list.innerHTML = '';
@@ -521,7 +525,6 @@
         currentGridOrder.forEach((id, index) => {
             const driver = bankedDrivers.find(d => d.id === id);
             
-            // Render Points Cutoff Line
             if(index === session.pointsCnt) {
                 const cutoff = document.createElement('div');
                 cutoff.className = 'points-cutoff';
@@ -551,45 +554,71 @@
         });
     }
 
-    // --- DRAG EVENTS ---
     function addDragEvents(item) {
-        item.addEventListener('dragstart', () => {
-            item.classList.add('dragging');
+        // --- MOUSE EVENTS ---
+        item.addEventListener('dragstart', () => item.classList.add('dragging'));
+        item.addEventListener('dragend', () => {
+            item.classList.remove('dragging');
+            updateOrderFromDOM();
         });
-
         item.addEventListener('dragover', (e) => {
             e.preventDefault();
             const draggingItem = document.querySelector('.dragging');
-            const list = document.getElementById('drag-list');
-            const siblings = [...list.querySelectorAll('.driver-card:not(.dragging)')];
-            
-            const nextSibling = siblings.find(sibling => {
-                return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
-            });
-            
-            if (nextSibling) {
-                list.insertBefore(draggingItem, nextSibling);
-            } else {
-                list.appendChild(draggingItem);
+            if(draggingItem !== item) {
+                handleMove(draggingItem, e.clientY);
             }
         });
 
-        const endDrag = () => {
-            item.classList.remove('dragging');
-            
-            const newOrder = [];
-            const list = document.getElementById('drag-list');
-            list.querySelectorAll('.driver-card').forEach(card => {
-                newOrder.push(card.dataset.id);
-            });
-            currentGridOrder = newOrder;
-            
-            renderDragList(); 
-            updateLiveStandings();
-        };
+        // --- TOUCH EVENTS (Custom Logic) ---
+        item.addEventListener('touchstart', (e) => {
+            // Prevent scrolling while dragging
+            // e.preventDefault(); // Optional: might block page scroll entirely
+            item.classList.add('dragging');
+        }, {passive: false});
 
-        item.addEventListener('drop', endDrag);
-        item.addEventListener('dragend', endDrag);
+        item.addEventListener('touchmove', (e) => {
+            e.preventDefault(); // Stop scrolling the list
+            const touch = e.touches[0];
+            const draggingItem = document.querySelector('.dragging');
+            handleMove(draggingItem, touch.clientY);
+        }, {passive: false});
+
+        item.addEventListener('touchend', () => {
+            item.classList.remove('dragging');
+            updateOrderFromDOM();
+        });
+    }
+
+    function handleMove(draggingItem, clientY) {
+        const list = document.getElementById('drag-list');
+        const siblings = [...list.querySelectorAll('.driver-card:not(.dragging)')];
+        
+        // Find closest sibling based on Y position
+        const nextSibling = siblings.find(sibling => {
+            const box = sibling.getBoundingClientRect();
+            return clientY <= box.top + box.height / 2;
+        });
+        
+        if (nextSibling) {
+            list.insertBefore(draggingItem, nextSibling);
+        } else {
+            // Check if we are below the last item (ignoring the divider)
+            list.appendChild(draggingItem);
+        }
+    }
+
+    function updateOrderFromDOM() {
+        const newOrder = [];
+        const list = document.getElementById('drag-list');
+        list.querySelectorAll('.driver-card').forEach(card => {
+            newOrder.push(card.dataset.id);
+        });
+        currentGridOrder = newOrder;
+        
+        // Soft refresh of visual elements (points badges) without rebuilding DOM and killing drag
+        // Actually, rebuilding is safer to keep divider in sync
+        renderDragList(); 
+        updateLiveStandings();
     }
 
     // --- LOGIC ---
@@ -597,7 +626,6 @@
         const session = SESSIONS[currentStep];
         const pointSystem = session.type === 'sprint' ? POINTS.sprint : POINTS.race;
 
-        // 1. Commit Points
         currentGridOrder.forEach((id, pos) => {
             if(pos < pointSystem.length) {
                 const driverIdx = bankedDrivers.findIndex(d => d.id === id);
@@ -605,13 +633,11 @@
             }
         });
 
-        // 2. Record History
         ['nor', 'pia', 'ver'].forEach(pid => {
             const d = bankedDrivers.find(d => d.id === pid);
             pointsHistory[pid].push(d.points);
         });
 
-        // 3. Move Step
         currentStep++;
 
         if(currentStep >= SESSIONS.length) {
@@ -628,15 +654,12 @@
         const view = document.getElementById('results-view');
         view.style.display = 'flex';
 
-        // 1. Sort Final Standings
         const finalSorted = [...bankedDrivers].sort((a,b) => b.points - a.points);
         const winner = finalSorted[0];
 
-        // 2. Header
         document.getElementById('res-winner-name').innerText = winner.name.toUpperCase();
         document.getElementById('res-winner-team').innerText = winner.team;
 
-        // 3. Table
         const tbody = document.querySelector('#final-table tbody');
         tbody.innerHTML = '';
         finalSorted.forEach((d, i) => {
@@ -649,77 +672,33 @@
             tbody.appendChild(row);
         });
 
-        // 4. Render Chart.js
         renderChart();
     }
 
     function renderChart() {
         const ctx = document.getElementById('championshipChart').getContext('2d');
-        
-        // Cleanup old chart
-        if (chartInstance) {
-            chartInstance.destroy();
-        }
+        if (chartInstance) chartInstance.destroy();
 
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: ['Start', 'Sprint', 'Qatar GP', 'Abu Dhabi'],
                 datasets: [
-                    {
-                        label: 'L. Norris',
-                        data: pointsHistory.nor,
-                        borderColor: '#FF8000', // McLaren
-                        backgroundColor: '#FF8000',
-                        borderWidth: 3,
-                        tension: 0.1
-                    },
-                    {
-                        label: 'O. Piastri',
-                        data: pointsHistory.pia,
-                        borderColor: '#FFB870', // Lighter Orange to distinguish
-                        backgroundColor: '#FFB870',
-                        borderWidth: 3,
-                        borderDash: [5, 5], // Dashed to distinguish teammate
-                        tension: 0.1
-                    },
-                    {
-                        label: 'M. Verstappen',
-                        data: pointsHistory.ver,
-                        borderColor: '#3671C6', // Red Bull Blue (lighter for dark bg)
-                        backgroundColor: '#3671C6',
-                        borderWidth: 3,
-                        tension: 0.1
-                    }
+                    { label: 'L. Norris', data: pointsHistory.nor, borderColor: '#FF8000', backgroundColor: '#FF8000', borderWidth: 3, tension: 0.1 },
+                    { label: 'O. Piastri', data: pointsHistory.pia, borderColor: '#FFB870', backgroundColor: '#FFB870', borderWidth: 3, borderDash: [5, 5], tension: 0.1 },
+                    { label: 'M. Verstappen', data: pointsHistory.ver, borderColor: '#3671C6', backgroundColor: '#3671C6', borderWidth: 3, tension: 0.1 }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: { color: '#f0f0f0', font: {size: 14} }
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        titleColor: '#fff',
-                        bodyColor: '#fff',
-                        backgroundColor: 'rgba(20,20,20,0.9)',
-                        borderColor: '#444',
-                        borderWidth: 1
-                    }
+                    legend: { position: 'top', labels: { color: '#f0f0f0', font: {size: 12} } },
+                    tooltip: { mode: 'index', intersect: false, titleColor: '#fff', bodyColor: '#fff', backgroundColor: 'rgba(20,20,20,0.9)', borderColor: '#444', borderWidth: 1 }
                 },
                 scales: {
-                    y: {
-                        grid: { color: '#333' },
-                        ticks: { color: '#888' }
-                    },
-                    x: {
-                        grid: { color: '#333' },
-                        ticks: { color: '#888' }
-                    }
+                    y: { grid: { color: '#333' }, ticks: { color: '#888' } },
+                    x: { grid: { color: '#333' }, ticks: { color: '#888' } }
                 }
             }
         });
@@ -733,7 +712,6 @@
         init();
     }
 
-    // Start
     init();
 
 </script>
