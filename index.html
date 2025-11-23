@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 2025 Finale</title>
+    <!-- Import Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #0b0b0b;
+            --panel-bg: #151515;
+            --item-bg: #1f1f1f;
+            --text-main: #f0f0f0;
+            --text-dim: #888;
+            --accent: #e10600;
+            --highlight: #2a2a2a;
+            
+            /* Team Colors */
+            --mclaren: #FF8000;
+            --redbull: #121F45;
+            --ferrari: #C00000;
+            --mercedes: #00A19C;
+            --williams: #005AFF;
+            --aston: #006F62;
+            --alpine: #FF87BC;
+            --haas: #B6BABD;
+            --rb: #1634CC;
+            --sauber: #52E252;
+        }
+
+        * { box-sizing: border-box; user-select: none; }
+        
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a { color: inherit; text-decoration: none; border-bottom: 1px dotted #666; transition: 0.2s; }
+        a:hover { color: #fff; border-bottom-color: #fff; }
+
+        header {
+            background: #000;
+            padding: 0 20px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+            flex-shrink: 0;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .progress-indicator {
+            display: flex;
+            gap: 10px;
+        }
+        .step {
+            font-size: 0.8rem;
+            color: #444;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .step.active { background: var(--accent); color: white; font-weight: bold; }
+        .step.done { color: var(--accent); }
+
+        /* MAIN LAYOUT */
+        .main-container {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            /* Height = 100vh - Header(60) - Footer(30) */
+            height: calc(100vh - 90px); 
+            position: relative;
+        }
+
+        /* LEFT PANEL: STANDINGS */
+        .standings-panel {
+            background: var(--panel-bg);
+            border-right: 1px solid #333;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .standings-header {
+            font-size: 1rem;
+            color: #ddd;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            background: #1a1a1a;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { text-align: left; color: #666; padding: 8px 10px; font-size: 0.75rem; text-transform: uppercase; background: #111; }
+        td { padding: 8px 10px; border-bottom: 1px solid #222; }
+        
+        .pos-cell { width: 30px; font-weight: bold; color: #666; }
+        .pts-cell { font-weight: bold; text-align: right; width: 80px;}
+        .diff-cell { font-size: 0.75em; color: #666; text-align: right; width: 60px;}
+        
+        .driver-name { display: flex; align-items: center; gap: 8px; }
+        .team-bar { width: 4px; height: 12px; border-radius: 2px; }
+
+        tr.leader { background: rgba(255, 215, 0, 0.05); }
+        tr.leader .pos-cell { color: gold; }
+        
+        .live-gain { color: #4caf50; font-size: 0.8em; margin-left: 4px; }
+
+        /* RIGHT PANEL: DRAG INTERFACE */
+        .race-panel {
+            background: var(--bg-dark);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .session-info { text-align: center; margin-bottom: 20px; flex-shrink: 0;}
+        .session-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 5px; }
+        .session-subtitle { color: #888; font-size: 0.9rem; }
+
+        .drag-container {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding-right: 10px;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .drag-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-bottom: 20px;
+        }
+
+        .driver-card {
+            background: var(--item-bg);
+            padding: 10px 15px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: grab;
+            transition: background 0.2s;
+            border-left: 5px solid transparent;
+        }
+
+        .driver-card:hover { background: var(--highlight); }
+        .driver-card:active { cursor: grabbing; }
+        .driver-card.dragging { opacity: 0.5; background: #333; }
+
+        .card-pos { font-weight: bold; width: 30px; color: #666; font-family: monospace; font-size: 1.1rem; }
+        .card-info { flex: 1; display: flex; align-items: center; gap: 10px; }
+        .card-team { font-size: 0.75rem; color: #888; text-transform: uppercase; width: 80px; }
+        .card-name { font-weight: 600; font-size: 1.1rem; }
+        .card-pts-preview { 
+            background: #333; color: gold; 
+            padding: 2px 8px; border-radius: 10px; 
+            font-size: 0.8rem; font-weight: bold;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .driver-card.in-points .card-pts-preview { opacity: 1; }
+
+        .points-cutoff {
+            border-bottom: 2px dashed #444;
+            margin: 10px 0;
+            height: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .points-cutoff span { background: var(--bg-dark); padding: 0 10px; color: #666; font-size: 0.7rem; text-transform: uppercase; }
+
+        .action-area {
+            padding: 20px;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--panel-bg);
+            flex-shrink: 0;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .btn-confirm { background: var(--accent); color: white; }
+        .btn-confirm:hover { background: #ff1a1a; }
+        .btn-reset { background: transparent; color: #666; border: 1px solid #444; }
+        .btn-reset:hover { color: #fff; border-color: #fff; }
+
+        /* FOOTER */
+        footer {
+            height: 30px;
+            background: #000;
+            border-top: 1px solid #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: #555;
+            letter-spacing: 0.5px;
+        }
+
+        /* RESULTS VIEW */
+        .results-view {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark);
+            z-index: 100;
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            padding: 40px;
+            overflow-y: auto;
+        }
+        
+        .results-header { text-align: center; margin-bottom: 30px; }
+        .results-title { font-size: 2.5rem; color: white; margin-bottom: 10px; }
+        .champion-badge { background: gold; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: inline-block; margin-bottom: 20px;}
+
+        .results-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* Graph takes more space */
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            height: 500px;
+        }
+
+        .graph-container {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .final-table-container {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            overflow-y: auto;
+        }
+        
+        .credits-small {
+            margin-top: 15px;
+            font-size: 0.8rem;
+            color: #555;
+        }
+
+        /* Team Colors helpers */
+        .tm-mclaren { border-left-color: var(--mclaren) !important; } .bg-mclaren { background-color: var(--mclaren); }
+        .tm-redbull { border-left-color: var(--redbull) !important; } .bg-redbull { background-color: var(--redbull); }
+        .tm-ferrari { border-left-color: var(--ferrari) !important; } .bg-ferrari { background-color: var(--ferrari); }
+        .tm-mercedes { border-left-color: var(--mercedes) !important; } .bg-mercedes { background-color: var(--mercedes); }
+        .tm-williams { border-left-color: var(--williams) !important; } .bg-williams { background-color: var(--williams); }
+        .tm-rb { border-left-color: var(--rb) !important; } .bg-rb { background-color: var(--rb); }
+        .tm-sauber { border-left-color: var(--sauber) !important; } .bg-sauber { background-color: var(--sauber); }
+        .tm-haas { border-left-color: var(--haas) !important; } .bg-haas { background-color: var(--haas); }
+        .tm-alpine { border-left-color: var(--alpine) !important; } .bg-alpine { background-color: var(--alpine); }
+        .tm-aston { border-left-color: var(--aston) !important; } .bg-aston { background-color: var(--aston); }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>F1 2025 Finale</h1>
+    <div class="progress-indicator">
+        <div id="step-0" class="step active">Qatar Sprint</div>
+        <div id="step-1" class="step">Qatar GP</div>
+        <div id="step-2" class="step">Abu Dhabi GP</div>
+    </div>
+</header>
+
+<div class="main-container">
+    
+    <!-- LEFT: LIVE STANDINGS -->
+    <div class="standings-panel">
+        <div class="standings-header">
+            <strong>Live Standings</strong> (Including Current Session)
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Driver</th>
+                    <th style="text-align:right">Pts</th>
+                    <th style="text-align:right">Gap</th>
+                </tr>
+            </thead>
+            <tbody id="standings-body">
+                <!-- Injected via JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- RIGHT: DRAG DROP RACE -->
+    <div class="race-panel">
+        <div class="session-info">
+            <div class="session-title" id="session-title">Qatar Sprint</div>
+            <div class="session-subtitle">Drag drivers to rearrange finishing order. Standings update live.</div>
+        </div>
+
+        <div class="drag-container">
+            <ul class="drag-list" id="drag-list">
+                <!-- Drivers injected via JS -->
+            </ul>
+        </div>
+
+        <div class="action-area">
+            <button class="btn-reset" onclick="resetSim()">Reset</button>
+            <div style="font-size:0.9rem; color:#666;" id="session-status">Top 8 score points</div>
+            <button class="btn-confirm" onclick="confirmResults()">Confirm & Next</button>
+        </div>
+    </div>
+
+    <!-- RESULTS VIEW OVERLAY -->
+    <div class="results-view" id="results-view">
+        <div class="results-header">
+            <div class="champion-badge">2025 CHAMPION</div>
+            <div class="results-title" id="res-winner-name">MAX VERSTAPPEN</div>
+            <div style="color:#888" id="res-winner-team">Red Bull Racing</div>
+        </div>
+
+        <div class="results-content">
+            <!-- Graph -->
+            <div class="graph-container">
+                <h3 style="margin:0 0 10px 0; color:#ddd;">Championship Trajectory</h3>
+                <div style="position: relative; height: 100%; width: 100%">
+                    <canvas id="championshipChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="final-table-container">
+                <h3 style="margin:0 0 20px 0; color:#ddd;">Final Classification</h3>
+                <table id="final-table">
+                    <thead>
+                        <tr><th>Pos</th><th>Driver</th><th style="text-align:right">Points</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="btn-confirm" onclick="resetSim()">Start New Simulation</button>
+            <div class="credits-small">
+                Made by <a href="https://kiera.dev" target="_blank">Kiera</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    Built by &nbsp;<a href="https://kiera.dev" target="_blank">Kiera</a>
+</footer>
+
+<script>
+    // --- DATA ---
+    const initialDrivers = [
+        { id: "nor", name: "L. Norris", team: "McLaren", color: "mclaren", points: 390 },
+        { id: "pia", name: "O. Piastri", team: "McLaren", color: "mclaren", points: 366 },
+        { id: "ver", name: "M. Verstappen", team: "Red Bull", color: "redbull", points: 366 },
+        { id: "rus", name: "G. Russell", team: "Mercedes", color: "mercedes", points: 294 },
+        { id: "lec", name: "C. Leclerc", team: "Ferrari", color: "ferrari", points: 226 },
+        { id: "ham", name: "L. Hamilton", team: "Ferrari", color: "ferrari", points: 152 },
+        { id: "ant", name: "K. Antonelli", team: "Mercedes", color: "mercedes", points: 137 },
+        { id: "alb", name: "A. Albon", team: "Williams", color: "williams", points: 73 },
+        { id: "had", name: "I. Hadjar", team: "Racing Bulls", color: "rb", points: 51 },
+        { id: "hul", name: "N. Hulkenberg", team: "Kick Sauber", color: "sauber", points: 49 },
+        { id: "sai", name: "C. Sainz", team: "Williams", color: "williams", points: 48 },
+        { id: "bea", name: "O. Bearman", team: "Haas", color: "haas", points: 41 },
+        { id: "alo", name: "F. Alonso", team: "Aston Martin", color: "aston", points: 40 },
+        { id: "law", name: "L. Lawson", team: "Racing Bulls", color: "rb", points: 36 },
+        { id: "oco", name: "E. Ocon", team: "Haas", color: "haas", points: 32 },
+        { id: "str", name: "L. Stroll", team: "Aston Martin", color: "aston", points: 32 },
+        { id: "tsu", name: "Y. Tsunoda", team: "Red Bull", color: "redbull", points: 28 },
+        { id: "gas", name: "P. Gasly", team: "Alpine", color: "alpine", points: 22 },
+        { id: "bor", name: "G. Bortoleto", team: "Kick Sauber", color: "sauber", points: 19 },
+        { id: "col", name: "F. Colapinto", team: "Alpine", color: "alpine", points: 0 }
+    ];
+
+    const POINTS = {
+        sprint: [8, 7, 6, 5, 4, 3, 2, 1],
+        race: [25, 18, 15, 12, 10, 8, 6, 4, 2, 1]
+    };
+
+    const SESSIONS = [
+        { name: "Qatar Sprint", type: "sprint", pointsCnt: 8 },
+        { name: "Qatar GP", type: "race", pointsCnt: 10 },
+        { name: "Abu Dhabi GP", type: "race", pointsCnt: 10 }
+    ];
+
+    // --- STATE ---
+    let currentStep = 0;
+    let bankedDrivers = JSON.parse(JSON.stringify(initialDrivers)); 
+    let currentGridOrder = [];
+    
+    // History for Graph [Start, Post-Sprint, Post-Qatar, Post-AbuDhabi]
+    let pointsHistory = {
+        nor: [390],
+        pia: [366],
+        ver: [366]
+    };
+
+    let chartInstance = null;
+
+    // --- INIT ---
+    function init() {
+        currentGridOrder = bankedDrivers.map(d => d.id); // Default start order = standings
+        renderDragList();
+        updateLiveStandings(); // Initial render
+        setupSessionUI();
+        
+        // Chart defaults for dark mode
+        Chart.defaults.color = '#888';
+        Chart.defaults.borderColor = '#333';
+    }
+
+    // --- LIVE CALCULATION ---
+    function updateLiveStandings() {
+        // Calculate points based on Banked + Current Drag Position
+        const session = SESSIONS[currentStep];
+        const pointsArr = session.type === 'sprint' ? POINTS.sprint : POINTS.race;
+
+        // Create a temporary array for display
+        let liveStandings = bankedDrivers.map(d => {
+            let addedPoints = 0;
+            const currentPos = currentGridOrder.indexOf(d.id);
+            if (currentPos !== -1 && currentPos < pointsArr.length) {
+                addedPoints = pointsArr[currentPos];
+            }
+            return {
+                ...d,
+                livePoints: d.points + addedPoints,
+                added: addedPoints
+            };
+        });
+
+        // Sort by Live Points
+        liveStandings.sort((a,b) => b.livePoints - a.livePoints);
+        
+        // Render
+        const tbody = document.getElementById('standings-body');
+        tbody.innerHTML = '';
+        const leaderPts = liveStandings[0].livePoints;
+
+        liveStandings.forEach((d, i) => {
+            const row = document.createElement('tr');
+            if(i===0) row.className = 'leader';
+            
+            const diff = i === 0 ? '-' : `-${leaderPts - d.livePoints}`;
+            const gainSpan = d.added > 0 ? `<span class="live-gain">(+${d.added})</span>` : '';
+            
+            row.innerHTML = `
+                <td class="pos-cell">${i+1}</td>
+                <td>
+                    <div class="driver-name">
+                        <div class="team-bar bg-${d.color}"></div>
+                        ${d.name}
+                    </div>
+                </td>
+                <td class="pts-cell">${d.livePoints}${gainSpan}</td>
+                <td class="diff-cell">${diff}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    // --- SETUP SESSION UI ---
+    function setupSessionUI() {
+        const session = SESSIONS[currentStep];
+        document.getElementById('session-title').innerText = session.name;
+        document.getElementById('session-status').innerText = `Top ${session.pointsCnt} drivers score points`;
+        
+        document.querySelectorAll('.step').forEach((el, i) => {
+            el.className = 'step';
+            if(i < currentStep) el.classList.add('done');
+            if(i === currentStep) el.classList.add('active');
+        });
+    }
+
+    // --- DRAG LIST RENDER ---
+    function renderDragList() {
+        const list = document.getElementById('drag-list');
+        list.innerHTML = '';
+        const session = SESSIONS[currentStep];
+        const pointsArr = session.type === 'sprint' ? POINTS.sprint : POINTS.race;
+
+        currentGridOrder.forEach((id, index) => {
+            const driver = bankedDrivers.find(d => d.id === id);
+            
+            // Render Points Cutoff Line
+            if(index === session.pointsCnt) {
+                const cutoff = document.createElement('div');
+                cutoff.className = 'points-cutoff';
+                cutoff.innerHTML = '<span>No Points Below This Line</span>';
+                list.appendChild(cutoff);
+            }
+
+            const pts = index < pointsArr.length ? `+${pointsArr[index]} pts` : '';
+            const inPoints = index < pointsArr.length ? 'in-points' : '';
+
+            const li = document.createElement('li');
+            li.className = `driver-card tm-${driver.color} ${inPoints}`;
+            li.draggable = true;
+            li.dataset.id = id;
+            
+            li.innerHTML = `
+                <div class="card-pos">P${index+1}</div>
+                <div class="card-info">
+                    <div class="card-name">${driver.name}</div>
+                    <div class="card-team">${driver.team}</div>
+                </div>
+                <div class="card-pts-preview">${pts}</div>
+            `;
+
+            addDragEvents(li);
+            list.appendChild(li);
+        });
+    }
+
+    // --- DRAG EVENTS ---
+    function addDragEvents(item) {
+        item.addEventListener('dragstart', () => {
+            item.classList.add('dragging');
+        });
+
+        item.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const draggingItem = document.querySelector('.dragging');
+            const list = document.getElementById('drag-list');
+            const siblings = [...list.querySelectorAll('.driver-card:not(.dragging)')];
+            
+            const nextSibling = siblings.find(sibling => {
+                return e.clientY <= sibling.getBoundingClientRect().top + sibling.getBoundingClientRect().height / 2;
+            });
+            
+            if (nextSibling) {
+                list.insertBefore(draggingItem, nextSibling);
+            } else {
+                list.appendChild(draggingItem);
+            }
+        });
+
+        const endDrag = () => {
+            item.classList.remove('dragging');
+            
+            const newOrder = [];
+            const list = document.getElementById('drag-list');
+            list.querySelectorAll('.driver-card').forEach(card => {
+                newOrder.push(card.dataset.id);
+            });
+            currentGridOrder = newOrder;
+            
+            renderDragList(); 
+            updateLiveStandings();
+        };
+
+        item.addEventListener('drop', endDrag);
+        item.addEventListener('dragend', endDrag);
+    }
+
+    // --- LOGIC ---
+    function confirmResults() {
+        const session = SESSIONS[currentStep];
+        const pointSystem = session.type === 'sprint' ? POINTS.sprint : POINTS.race;
+
+        // 1. Commit Points
+        currentGridOrder.forEach((id, pos) => {
+            if(pos < pointSystem.length) {
+                const driverIdx = bankedDrivers.findIndex(d => d.id === id);
+                bankedDrivers[driverIdx].points += pointSystem[pos];
+            }
+        });
+
+        // 2. Record History
+        ['nor', 'pia', 'ver'].forEach(pid => {
+            const d = bankedDrivers.find(d => d.id === pid);
+            pointsHistory[pid].push(d.points);
+        });
+
+        // 3. Move Step
+        currentStep++;
+
+        if(currentStep >= SESSIONS.length) {
+            showResultsView();
+        } else {
+            setupSessionUI();
+            renderDragList();
+            updateLiveStandings();
+        }
+    }
+
+    // --- RESULTS VIEW ---
+    function showResultsView() {
+        const view = document.getElementById('results-view');
+        view.style.display = 'flex';
+
+        // 1. Sort Final Standings
+        const finalSorted = [...bankedDrivers].sort((a,b) => b.points - a.points);
+        const winner = finalSorted[0];
+
+        // 2. Header
+        document.getElementById('res-winner-name').innerText = winner.name.toUpperCase();
+        document.getElementById('res-winner-team').innerText = winner.team;
+
+        // 3. Table
+        const tbody = document.querySelector('#final-table tbody');
+        tbody.innerHTML = '';
+        finalSorted.forEach((d, i) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${i+1}</td>
+                <td><span class="team-bar bg-${d.color}" style="display:inline-block; margin-right:8px;"></span>${d.name}</td>
+                <td style="text-align:right; font-weight:bold;">${d.points}</td>
+            `;
+            tbody.appendChild(row);
+        });
+
+        // 4. Render Chart.js
+        renderChart();
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('championshipChart').getContext('2d');
+        
+        // Cleanup old chart
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Start', 'Sprint', 'Qatar GP', 'Abu Dhabi'],
+                datasets: [
+                    {
+                        label: 'L. Norris',
+                        data: pointsHistory.nor,
+                        borderColor: '#FF8000', // McLaren
+                        backgroundColor: '#FF8000',
+                        borderWidth: 3,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'O. Piastri',
+                        data: pointsHistory.pia,
+                        borderColor: '#FFB870', // Lighter Orange to distinguish
+                        backgroundColor: '#FFB870',
+                        borderWidth: 3,
+                        borderDash: [5, 5], // Dashed to distinguish teammate
+                        tension: 0.1
+                    },
+                    {
+                        label: 'M. Verstappen',
+                        data: pointsHistory.ver,
+                        borderColor: '#3671C6', // Red Bull Blue (lighter for dark bg)
+                        backgroundColor: '#3671C6',
+                        borderWidth: 3,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: '#f0f0f0', font: {size: 14} }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        backgroundColor: 'rgba(20,20,20,0.9)',
+                        borderColor: '#444',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: '#333' },
+                        ticks: { color: '#888' }
+                    },
+                    x: {
+                        grid: { color: '#333' },
+                        ticks: { color: '#888' }
+                    }
+                }
+            }
+        });
+    }
+
+    function resetSim() {
+        currentStep = 0;
+        bankedDrivers = JSON.parse(JSON.stringify(initialDrivers));
+        pointsHistory = { nor: [390], pia: [366], ver: [366] };
+        document.getElementById('results-view').style.display = 'none';
+        init();
+    }
+
+    // Start
+    init();
+
+</script>
+</body>
+</html>
